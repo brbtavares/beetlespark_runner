@@ -6,6 +6,8 @@ const GROUND_H: f32 = 80.0;
 const PLAYER_W: f32 = 60.0;
 const PLAYER_H: f32 = 60.0;
 const BASE_SPEED: f32 = 30.0;
+const SPEED_GROWTH: f32 = 8.0;      // aceleração base
+const MAX_SPEED: f32 = 140.0;       // teto para não ficar impossível
 const SPAWN_MIN: f32 = 0.9;
 const SPAWN_MAX: f32 = 1.8;
 
@@ -16,7 +18,6 @@ enum State {
     GameOver,
 }
 
-#[derive(Clone, Copy)]
 struct Player {
     pos: Vec2,
     vel: Vec2,
@@ -62,7 +63,6 @@ impl Player {
     }
 }
 
-#[derive(Clone, Copy)]
 struct Obstacle {
     pos: Vec2,
     size: Vec2,
@@ -173,8 +173,8 @@ async fn main() {
                 // update player
                 player_ref.update(dt, ground_y, jump_pressed);
 
-                // dificuldade escala com o tempo
-                speed += 8.0 * dt;
+                // dificuldade escala com o tempo (limitada)
+                speed = (speed + SPEED_GROWTH * dt).min(MAX_SPEED);
 
                 // spawner
                 spawn_t += dt;
@@ -218,9 +218,7 @@ async fn main() {
                 );
 
                 if !alive {
-                    if score > hi_score {
-                        hi_score = score;
-                    }
+                    if score > hi_score { hi_score = score; }
                     state = State::GameOver;
                 }
             }
@@ -234,10 +232,17 @@ async fn main() {
                     28.0,
                     DARKGRAY,
                 );
-                draw_text("Toque/SPACE para reiniciar", 32.0, 210.0, 24.0, DARKGRAY);
-                if jump_pressed {
-                    // volta ao menu, espera input para recriar
-                    state = State::Menu;
+                draw_text("Toque/SPACE para reiniciar | M para Menu", 32.0, 210.0, 24.0, DARKGRAY);
+                if is_key_pressed(KeyCode::M) { state = State::Menu; }
+                else if jump_pressed {
+                    // restart direto
+                    score = 0.0;
+                    speed = BASE_SPEED;
+                    obstacles.clear();
+                    spawn_t = 0.0;
+                    next_spawn = rand::gen_range(SPAWN_MIN, SPAWN_MAX);
+                    player = Some(Player::new(sw, ground_y));
+                    state = State::Playing;
                 }
             }
         }
